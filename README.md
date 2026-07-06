@@ -51,15 +51,45 @@ Output from running `python main.py`:
   Today's Schedule for Jordan
   Time budget: 120 min
 ============================================
-  08:45  Breakfast         10 min  [high]
+  08:00  Breakfast         10 min  [high]
   09:00  Feeding           10 min  [high]
-  09:10  Morning walk      30 min  [high]
-  09:40  Litter cleanup    15 min  [medium]
-  18:00  Evening walk      30 min  [medium]
-  18:30  Play session      20 min  [low]
+  09:10  Vet visit         60 min  [high]
+  10:10  Litter cleanup    15 min  [medium]
 --------------------------------------------
-  Total scheduled: 115 min
+  Total scheduled: 95 min
+
+  Not scheduled:
+    - Morning walk: time conflict at 08:00
+    - Evening walk: not enough time in the day
 ============================================
+
+--- Tasks sorted by time ---
+  08:00  Morning walk
+  08:00  Breakfast
+  09:00  Feeding
+  09:30  Litter cleanup
+  18:00  Evening walk
+    --    Vet visit
+
+--- Filter: pending (not completed) ---
+  Evening walk
+  Morning walk
+  Breakfast
+  Litter cleanup
+  Feeding
+  Vet visit
+
+--- Filter: only Mochi's tasks ---
+  Evening walk
+  Morning walk
+  Breakfast
+
+--- Conflict detection ---
+  ⚠️ Conflict at 08:00: Morning walk, Breakfast
+
+--- Recurring tasks ---
+  Completed 'Morning walk' (daily).
+  Task count 3 -> 4; next occurrence due 2026-07-07.
 ```
 
 ## 🧪 Testing PawPal+
@@ -78,24 +108,32 @@ Sample test output:
 ============================= test session starts ==============================
 platform darwin -- Python 3.13.5, pytest-8.3.4, pluggy-1.5.0
 rootdir: .../ai110-module2show-pawpal-starter
-collected 2 items
+collected 6 items
 
-tests/test_pawpal.py::test_mark_complete_changes_status PASSED           [ 50%]
-tests/test_pawpal.py::test_adding_task_increases_pet_task_count PASSED   [100%]
+tests/test_pawpal.py::test_mark_complete_changes_status PASSED           [ 16%]
+tests/test_pawpal.py::test_adding_task_increases_pet_task_count PASSED   [ 33%]
+tests/test_pawpal.py::test_sort_by_time_orders_chronologically PASSED    [ 50%]
+tests/test_pawpal.py::test_filter_by_status_returns_only_matching PASSED [ 66%]
+tests/test_pawpal.py::test_detect_conflicts_flags_same_time PASSED       [ 83%]
+tests/test_pawpal.py::test_completing_daily_task_creates_next_occurrence PASSED [100%]
 
-============================== 2 passed in 0.01s ===============================
+============================== 6 passed in 0.01s ===============================
 ```
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
+All scheduling logic lives in `pawpal_system.py`.
 
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Sort by priority | `Scheduler.sort_tasks()` | High → medium → low (`Task.priority_rank()`), shortest duration as tiebreak |
+| Sort by time | `Scheduler.sort_by_time()` | Chronological by `preferred_time` ("HH:MM"); untimed tasks last |
+| Filter by status | `Scheduler.filter_by_status()` | Keep only completed / pending tasks |
+| Filter by pet | `Scheduler.filter_by_pet()` | Return one named pet's tasks |
+| Filter by time budget | `Scheduler.filter_tasks()` | Greedily keep tasks until `available_minutes` runs out |
+| Conflict detection | `Scheduler.detect_conflicts()` | Warns on exact same-time clashes; returns messages, never raises |
+| Recurring tasks | `Task.next_occurrence()`, `Pet.mark_task_complete()` | Completing a daily/weekly task auto-creates the next occurrence (`timedelta`) |
+| Plan assembly | `Scheduler.build_plan()`, `Scheduler.schedule_owner()` | Drop completed → sort → resolve conflicts → filter to budget → assign clock times |
 
 ## 📸 Demo Walkthrough
 

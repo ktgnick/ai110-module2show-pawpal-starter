@@ -38,13 +38,21 @@ I did *not* act on one suggestion — converting `preferred_time` from a string 
 
 **a. Constraints and priorities**
 
-- What constraints does your scheduler consider (for example: time, priority, preferences)?
-- How did you decide which constraints mattered most?
+The scheduler considers three constraints, applied in this order:
+
+1. **Completion status** — already-completed tasks are dropped before planning.
+2. **Priority** — tasks sort high → medium → low (via `PRIORITY_ORDER` / `Task.priority_rank()`), with shortest-duration first as a tiebreak so more tasks fit.
+3. **Time budget** — `Owner.available_minutes` caps the day; `filter_tasks()` greedily keeps tasks until the budget runs out.
+
+Time conflicts (two tasks wanting the same `preferred_time`) are resolved on top of this. Priority mattered most because the scenario is a *busy* owner: when time is short, the important tasks (meds, walks) must survive over nice-to-haves (enrichment).
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+My conflict detection only checks for **exact `preferred_time` matches**, not overlapping durations. Two tasks both at `08:00` are flagged, but a 30-minute task at `08:00` and another at `08:15` are *not* — even though they truly overlap.
+
+This is a reasonable tradeoff for the scenario: comparing exact start-time strings is simple, fast, and easy to reason about, and most owners enter round times ("08:00", "09:00") anyway. Full interval-overlap detection would need real time math (parse start, add duration, compare ranges) for a small accuracy gain. I noted it as the first thing to improve if the app graduated from a daily planner to a minute-accurate calendar.
+
+A second tradeoff: within one priority level, `sort_tasks` favors **shorter** tasks so more fit under a tight budget. The cost is that a long high-priority anchor (e.g. a 30-min walk) can lose its slot to a shorter same-priority task — visible in the demo where "Breakfast" claimed 08:00 over "Morning walk".
 
 ---
 

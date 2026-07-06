@@ -8,6 +8,8 @@ Single-module version of the UML design. Classes:
     Scheduler - the planning engine that turns tasks + budget into a Plan
 """
 
+from datetime import date, timedelta
+
 # Rank map so the scheduler can order tasks by priority deterministically.
 # Higher number = more important.
 PRIORITY_ORDER = {"low": 0, "medium": 1, "high": 2}
@@ -40,6 +42,7 @@ class Task:
         recurrence=None,
         preferred_time=None,
         completed=False,
+        due_date=None,
     ):
         """
         name: str, description of the activity, e.g. "Morning walk"
@@ -49,6 +52,7 @@ class Task:
         recurrence: str or None, frequency e.g. "daily" | "weekly"
         preferred_time: str or None, 'HH:MM' the owner wants it at
         completed: bool, whether the task is already done today
+        due_date: datetime.date or None, the day this occurrence is due
         """
         self.name = name
         self.duration = duration
@@ -57,6 +61,7 @@ class Task:
         self.recurrence = recurrence
         self.preferred_time = preferred_time
         self.completed = completed
+        self.due_date = due_date
 
     def is_high_priority(self):
         """Return True if this task is high priority."""
@@ -76,6 +81,23 @@ class Task:
     def reset(self):
         """Mark this task not complete (e.g. new day)."""
         self.completed = False
+
+    def next_occurrence(self, from_date=None):
+        """Return a fresh, uncompleted copy due one interval later, or None if not recurring."""
+        if self.recurrence not in ("daily", "weekly"):
+            return None
+        base = from_date or self.due_date or date.today()
+        step = timedelta(days=1 if self.recurrence == "daily" else 7)
+        return Task(
+            self.name,
+            self.duration,
+            self.priority,
+            category=self.category,
+            recurrence=self.recurrence,
+            preferred_time=self.preferred_time,
+            completed=False,
+            due_date=base + step,
+        )
 
     def __repr__(self):
         return (
@@ -110,6 +132,14 @@ class Pet:
     def get_tasks(self):
         """Return this pet's tasks."""
         return self.tasks
+
+    def mark_task_complete(self, task):
+        """Mark a task done; if it recurs, auto-add its next occurrence and return it."""
+        task.mark_complete()
+        upcoming = task.next_occurrence()
+        if upcoming is not None:
+            self.add_task(upcoming)
+        return upcoming
 
 
 class Owner:
@@ -207,6 +237,42 @@ class Scheduler:
         Shortest-first within a priority lets more tasks fit under a tight budget.
         """
         return sorted(tasks, key=lambda t: (-t.priority_rank(), t.duration))
+
+    def sort_by_time(self, tasks):
+        """Return tasks in chronological order of preferred_time; untimed tasks last.
+
+        'HH:MM' is zero-padded, so a plain string sort is already chronological.
+        """
+        return sorted(tasks, key=lambda t: (t.preferred_time is None, t.preferred_time or ""))
+
+    def filter_by_status(self, tasks, completed=False):
+        """Return only tasks whose completed flag matches `completed`."""
+        return [t for t in tasks if t.completed == completed]
+
+    def filter_by_pet(self, owner, pet_name):
+        """Return the tasks belonging to the named pet (empty list if no match)."""
+        for pet in owner.pets:
+            if pet.name == pet_name:
+                return pet.get_tasks()
+        return []
+
+    def detect_conflicts(self, tasks):
+        """Return warning strings for tasks sharing an exact preferred_time.
+
+        Lightweight: matches exact start times only, not overlapping durations.
+        Never raises — an empty list means no conflicts.
+        """
+        by_time = {}
+        for task in tasks:
+            if task.preferred_time is not None:
+                by_time.setdefault(task.preferred_time, []).append(task)
+
+        warnings = []
+        for time_slot, clashing in sorted(by_time.items()):
+            if len(clashing) > 1:
+                names = ", ".join(t.name for t in clashing)
+                warnings.append(f"⚠️ Conflict at {time_slot}: {names}")
+        return warnings
 
     def filter_tasks(self, tasks, budget):
         """Greedily keep tasks (in given order) whose running total fits budget.
