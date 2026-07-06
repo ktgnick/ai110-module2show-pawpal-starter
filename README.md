@@ -102,23 +102,44 @@ pytest
 pytest --cov
 ```
 
+**What the tests cover:**
+
+- **Task basics** — completion status flips; adding a task grows the pet's list.
+- **Sorting** — `sort_by_time` returns chronological order; untimed tasks last; empty list is safe.
+- **Filtering** — by completion status; by pet name (incl. unknown pet → empty).
+- **Recurrence** — daily task regenerates +1 day, weekly +7 days; one-off tasks don't regenerate.
+- **Conflict detection** — flags duplicate times; silent when all times differ.
+- **Planning edge cases** — aggregation across pets; a pet with no tasks yields an empty plan; completed and over-budget tasks are skipped with reasons.
+
 Sample test output:
 
 ```
 ============================= test session starts ==============================
 platform darwin -- Python 3.13.5, pytest-8.3.4, pluggy-1.5.0
 rootdir: .../ai110-module2show-pawpal-starter
-collected 6 items
+collected 14 items
 
-tests/test_pawpal.py::test_mark_complete_changes_status PASSED           [ 16%]
-tests/test_pawpal.py::test_adding_task_increases_pet_task_count PASSED   [ 33%]
-tests/test_pawpal.py::test_sort_by_time_orders_chronologically PASSED    [ 50%]
-tests/test_pawpal.py::test_filter_by_status_returns_only_matching PASSED [ 66%]
-tests/test_pawpal.py::test_detect_conflicts_flags_same_time PASSED       [ 83%]
-tests/test_pawpal.py::test_completing_daily_task_creates_next_occurrence PASSED [100%]
+tests/test_pawpal.py::test_mark_complete_changes_status PASSED           [  7%]
+tests/test_pawpal.py::test_adding_task_increases_pet_task_count PASSED   [ 14%]
+tests/test_pawpal.py::test_sort_by_time_orders_chronologically PASSED    [ 21%]
+tests/test_pawpal.py::test_filter_by_status_returns_only_matching PASSED [ 28%]
+tests/test_pawpal.py::test_detect_conflicts_flags_same_time PASSED       [ 35%]
+tests/test_pawpal.py::test_completing_daily_task_creates_next_occurrence PASSED [ 42%]
+tests/test_pawpal.py::test_completing_weekly_task_advances_seven_days PASSED [ 50%]
+tests/test_pawpal.py::test_non_recurring_task_does_not_regenerate PASSED [ 57%]
+tests/test_pawpal.py::test_owner_all_tasks_aggregates_across_pets PASSED [ 64%]
+tests/test_pawpal.py::test_pet_with_no_tasks_produces_empty_plan PASSED  [ 71%]
+tests/test_pawpal.py::test_sort_by_time_on_empty_list PASSED             [ 78%]
+tests/test_pawpal.py::test_detect_conflicts_none_when_all_times_differ PASSED [ 85%]
+tests/test_pawpal.py::test_filter_by_pet_unknown_name_returns_empty PASSED [ 92%]
+tests/test_pawpal.py::test_build_plan_skips_completed_and_over_budget PASSED [100%]
 
-============================== 6 passed in 0.01s ===============================
+============================== 14 passed in 0.02s ===============================
 ```
+
+**Confidence level: ★★★★☆ (4/5)**
+
+All 14 tests pass and cover every core behavior plus the main edge cases (empty pets, duplicate times, recurrence intervals, budget overflow). Dropping one star because conflict detection only catches exact time matches — not overlapping durations — and time-of-day placement isn't yet unit-tested. Those are the next tests to add.
 
 ## 📐 Smarter Scheduling
 

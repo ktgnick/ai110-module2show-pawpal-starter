@@ -61,3 +61,84 @@ def test_completing_daily_task_creates_next_occurrence():
     assert len(pet.get_tasks()) == 2
     assert upcoming.completed is False
     assert upcoming.due_date == date.today() + timedelta(days=1)
+
+
+def test_completing_weekly_task_advances_seven_days():
+    """A weekly task's next occurrence is due seven days later."""
+    pet = Pet("Biscuit")
+    vet = Task("Vet visit", 60, "high", recurrence="weekly", due_date=date.today())
+    pet.add_task(vet)
+    upcoming = pet.mark_task_complete(vet)
+    assert upcoming.due_date == date.today() + timedelta(days=7)
+
+
+def test_non_recurring_task_does_not_regenerate():
+    """Completing a one-off task adds no new task and returns None."""
+    pet = Pet("Mochi")
+    task = Task("Nail trim", 15, "low")  # no recurrence
+    pet.add_task(task)
+    upcoming = pet.mark_task_complete(task)
+    assert upcoming is None
+    assert len(pet.get_tasks()) == 1
+
+
+# --- Edge cases ----------------------------------------------------------
+
+def test_owner_all_tasks_aggregates_across_pets():
+    """all_tasks() flattens every pet's tasks into one list."""
+    owner = Owner("Jordan")
+    dog = Pet("Mochi")
+    cat = Pet("Biscuit")
+    dog.add_task(Task("Walk", 30, "high"))
+    cat.add_task(Task("Feeding", 10, "high"))
+    cat.add_task(Task("Play", 20, "low"))
+    owner.add_pet(dog)
+    owner.add_pet(cat)
+    assert len(owner.all_tasks()) == 3
+
+
+def test_pet_with_no_tasks_produces_empty_plan():
+    """An owner whose pets have no tasks yields an empty, non-crashing plan."""
+    owner = Owner("Jordan", available_minutes=60)
+    owner.add_pet(Pet("Mochi"))
+    plan = Scheduler().schedule_owner(owner)
+    assert plan.scheduled == []
+    assert plan.skipped == []
+    assert plan.total_time == 0
+
+
+def test_sort_by_time_on_empty_list():
+    """Sorting an empty task list returns an empty list, not an error."""
+    assert Scheduler().sort_by_time([]) == []
+
+
+def test_detect_conflicts_none_when_all_times_differ():
+    """No warnings when every task has a distinct time (or no time)."""
+    tasks = [
+        Task("Walk", 30, "high", preferred_time="08:00"),
+        Task("Feeding", 10, "high", preferred_time="09:00"),
+        Task("Play", 20, "low"),  # no time -> never conflicts
+    ]
+    assert Scheduler().detect_conflicts(tasks) == []
+
+
+def test_filter_by_pet_unknown_name_returns_empty():
+    """Filtering by a pet that doesn't exist returns an empty list."""
+    owner = Owner("Jordan")
+    owner.add_pet(Pet("Mochi"))
+    assert Scheduler().filter_by_pet(owner, "Ghost") == []
+
+
+def test_build_plan_skips_completed_and_over_budget():
+    """Completed tasks and tasks past the time budget land in skipped."""
+    tasks = [
+        Task("Walk", 30, "high"),
+        Task("Long training", 45, "medium"),  # 30+45 > 60 budget
+        Task("Grooming", 20, "medium", completed=True),
+    ]
+    plan = Scheduler().build_plan(tasks, budget=60)
+    scheduled_names = [t.name for _, t in plan.scheduled]
+    skipped = {t.name: reason for t, reason in plan.skipped}
+    assert scheduled_names == ["Walk"]
+    assert skipped["Grooming"] == "already completed"
+    assert "not enough time" in skipped["Long training"]
