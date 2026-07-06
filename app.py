@@ -76,25 +76,60 @@ with st.form("add_task_form", clear_on_submit=True):
         st.success(f"Added '{task_title.strip()}' to {target_name}.")
 
 # --- Current pets & tasks ------------------------------------------------
+scheduler = Scheduler()
+
 st.subheader("Pets & tasks")
+
+# Surface time conflicts across ALL pets up front, so the owner sees them
+# before they try to build a schedule.
+conflicts = scheduler.detect_conflicts(owner.all_tasks())
+for warning in conflicts:
+    st.warning(warning)
+
+status_filter = st.radio(
+    "Show", ["All", "Pending", "Completed"], horizontal=True, index=0
+)
+
 for pet in owner.pets:
-    with st.expander(f"{pet.name} ({pet.species}) — {len(pet.get_tasks())} task(s)", expanded=True):
-        tasks = pet.get_tasks()
+    tasks = pet.get_tasks()
+    if status_filter == "Pending":
+        tasks = scheduler.filter_by_status(tasks, completed=False)
+    elif status_filter == "Completed":
+        tasks = scheduler.filter_by_status(tasks, completed=True)
+    tasks = scheduler.sort_by_time(tasks)  # chronological order
+
+    with st.expander(f"{pet.name} ({pet.species}) — {len(tasks)} task(s)", expanded=True):
         if not tasks:
-            st.caption("No tasks yet.")
-        for task in tasks:
-            done = "✅" if task.completed else "⬜️"
-            when = f" @ {task.preferred_time}" if task.preferred_time else ""
-            st.write(f"{done} {task.name} — {task.duration} min [{task.priority}]{when}")
+            st.caption("No tasks to show.")
+        for i, task in enumerate(tasks):
+            recur = f" · 🔁 {task.recurrence}" if task.recurrence else ""
+            when = task.preferred_time or "--:--"
+            row, action = st.columns([5, 1])
+            with row:
+                mark = "✅" if task.completed else "⬜️"
+                st.write(f"{mark} **{when}** · {task.name} — {task.duration} min [{task.priority}]{recur}")
+            with action:
+                if not task.completed and st.button("Done", key=f"done_{pet.name}_{i}"):
+                    upcoming = pet.mark_task_complete(task)
+                    if upcoming is not None:
+                        st.toast(f"Next '{task.name}' scheduled for {upcoming.due_date}.")
+                    st.rerun()
 
 st.divider()
 
 # --- Build the schedule --------------------------------------------------
 st.subheader("Today's Schedule")
 if st.button("Generate schedule", type="primary"):
-    plan = Scheduler().schedule_owner(owner)
+    if conflicts:
+        st.warning(
+            f"{len(conflicts)} time conflict(s) detected — lower-priority clashes "
+            "will be left out of the plan below."
+        )
+
+    plan = scheduler.schedule_owner(owner)
     rows = plan.to_display()
     if rows:
+        st.success(f"Planned {len(rows)} task(s).")
         st.table(rows)
         st.caption(f"Total scheduled: {plan.total_time} min of {owner.available_minutes} available.")
     else:

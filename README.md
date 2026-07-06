@@ -22,6 +22,17 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## ✨ Features
+
+- **Multi-pet management** — one owner, many pets, each with its own task list (`Owner.add_pet`, `Pet.add_task`).
+- **Priority scheduling** — tasks planned high → medium → low, shortest-first as tiebreak (`Scheduler.sort_tasks`).
+- **Sort by time** — view tasks in chronological order of their preferred time (`Scheduler.sort_by_time`).
+- **Filtering** — by completion status or by pet (`Scheduler.filter_by_status`, `Scheduler.filter_by_pet`).
+- **Time-budget planning** — fits tasks into the owner's available minutes and reports what didn't fit (`Scheduler.filter_tasks`, `Scheduler.build_plan`).
+- **Conflict warnings** — flags tasks competing for the same time slot without crashing (`Scheduler.detect_conflicts`).
+- **Daily / weekly recurrence** — completing a recurring task auto-creates its next occurrence via `timedelta` (`Task.next_occurrence`, `Pet.mark_task_complete`).
+- **Explainable plans** — every plan reports why tasks were scheduled or skipped (`Plan.explain`).
+
 ## Getting started
 
 ### Setup
@@ -158,12 +169,62 @@ All scheduling logic lives in `pawpal_system.py`.
 
 ## 📸 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+### Main UI features (`app.py`)
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+- **Owner panel** — set your name and how many minutes you have today.
+- **Add a pet** — name, species, breed. Pets persist across reruns via `st.session_state`.
+- **Add a task** — pick the pet, then set title, duration, priority, optional time, and category.
+- **Pets & tasks view** — tasks shown per pet, sorted by time, with a status filter (All / Pending / Completed) and a **Done** button that completes a task (and auto-creates the next one if it recurs).
+- **Conflict banner** — any two tasks at the same time raise a `st.warning` at the top.
+- **Today's Schedule** — one button builds the plan, shows it as a table, lists skipped tasks with reasons, and offers a "Why this plan?" explanation.
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+### Example workflow
+
+1. Enter owner **Jordan**, 120 minutes available.
+2. Add pet **Mochi** (dog), then add tasks: *Morning walk* 08:00 (daily), *Breakfast* 08:00, *Evening walk* 18:00.
+3. Add pet **Biscuit** (cat) with *Feeding* 09:00 and a weekly *Vet visit*.
+4. A conflict warning appears: *Morning walk* and *Breakfast* both want 08:00.
+5. Click **Generate schedule** — the planner sorts by priority, drops the lower-priority 08:00 clash, fits the rest into 120 minutes, and explains the result.
+6. Click **Done** on *Morning walk* — it's marked complete and tomorrow's occurrence is created automatically.
+
+### Key Scheduler behaviors shown
+
+- Sorting by time and by priority
+- Conflict detection with a plain-language warning
+- Budget-aware filtering (tasks that don't fit are reported, not dropped silently)
+- Daily/weekly recurrence on completion
+
+### Sample CLI output (`python main.py`)
+
+```
+============================================
+  Today's Schedule for Jordan
+  Time budget: 120 min
+============================================
+  08:00  Breakfast         10 min  [high]
+  09:00  Feeding           10 min  [high]
+  09:10  Vet visit         60 min  [high]
+  10:10  Litter cleanup    15 min  [medium]
+--------------------------------------------
+  Total scheduled: 95 min
+
+  Not scheduled:
+    - Morning walk: time conflict at 08:00
+    - Evening walk: not enough time in the day
+============================================
+
+--- Tasks sorted by time ---
+  08:00  Morning walk
+  08:00  Breakfast
+  09:00  Feeding
+  09:30  Litter cleanup
+  18:00  Evening walk
+    --    Vet visit
+
+--- Conflict detection ---
+  ⚠️ Conflict at 08:00: Morning walk, Breakfast
+
+--- Recurring tasks ---
+  Completed 'Morning walk' (daily).
+  Task count 3 -> 4; next occurrence due 2026-07-07.
+```
