@@ -9,6 +9,7 @@ classDiagram
         +add_pet(pet Pet) void
         +set_available_time(minutes int) void
         +set_preference(key str, value) void
+        +all_tasks() list~Task~
     }
 
     class Pet {
@@ -29,10 +30,10 @@ classDiagram
         +str recurrence
         +str preferred_time
         +is_high_priority() bool
+        +priority_rank() int
     }
 
     class Scheduler {
-        +int time_budget
         +sort_tasks(tasks list~Task~) list~Task~
         +filter_tasks(tasks list~Task~, budget int) list~Task~
         +resolve_conflicts(tasks list~Task~) list~Task~
