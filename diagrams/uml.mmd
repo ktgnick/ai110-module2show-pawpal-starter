@@ -1,15 +1,57 @@
 classDiagram
-    %% Replace the placeholders below with your actual classes, attributes, methods, and relationships.
-    %% Keep this file updated so it matches your final implementation.
+    %% PawPal+ working UML draft (Phase 2). Update in Phase 6 to match final code.
 
-    class ClassName {
-        +type attribute
-        +method() returnType
+    class Owner {
+        +str name
+        +list~Pet~ pets
+        +dict preferences
+        +int available_minutes
+        +add_pet(pet Pet) void
+        +set_available_time(minutes int) void
+        +set_preference(key str, value) void
     }
 
-    class AnotherClass {
-        +type attribute
-        +method() returnType
+    class Pet {
+        +str name
+        +str species
+        +str breed
+        +list~Task~ tasks
+        +add_task(task Task) void
+        +remove_task(task Task) void
+        +get_tasks() list~Task~
     }
 
-    ClassName --> AnotherClass : relationship
+    class Task {
+        +str name
+        +int duration
+        +str priority
+        +str category
+        +str recurrence
+        +str preferred_time
+        +is_high_priority() bool
+    }
+
+    class Scheduler {
+        +int time_budget
+        +sort_tasks(tasks list~Task~) list~Task~
+        +filter_tasks(tasks list~Task~, budget int) list~Task~
+        +resolve_conflicts(tasks list~Task~) list~Task~
+        +build_plan(tasks list~Task~, budget int) Plan
+    }
+
+    class Plan {
+        +list scheduled
+        +list skipped
+        +int total_time
+        +str reasoning
+        +add_entry(time str, task Task) void
+        +add_skipped(task Task, reason str) void
+        +explain() str
+        +to_display() str
+    }
+
+    Owner "1" --> "*" Pet : has
+    Pet "1" --> "*" Task : has
+    Scheduler ..> Task : reads
+    Scheduler ..> Plan : produces
+    Plan "1" --> "*" Task : references
